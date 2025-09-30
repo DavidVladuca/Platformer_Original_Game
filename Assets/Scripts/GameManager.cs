@@ -8,26 +8,18 @@ using UnityEngine.UI;
 public class GameManager : MonoBehaviour
 {
     [SerializeField] string sceneName;
-
     [SerializeField] GameObject player;
-
     [SerializeField] GameObject startScreen;
     [SerializeField] GameObject playScreen;
     [SerializeField] GameObject pauseScreen;
-
     [SerializeField] AudioSource audioSource;
-
     [SerializeField] GameObject[] fullHearts;
     [SerializeField] GameObject[] emptyHearts;
-
     [SerializeField] Image dash;
-
     [SerializeField] TMP_Text ScoreText;
-
     [SerializeField] TMP_Text HeartNo;
 
     public bool gamePaused;
-
     public bool loseLife;
     public bool useDash;
 
@@ -38,23 +30,18 @@ public class GameManager : MonoBehaviour
     void Start()
     {
         Application.targetFrameRate = 120;
-
         startScreen.SetActive(true);
         playScreen.SetActive(false);
         pauseScreen.SetActive(false);
-
         Time.timeScale = 0;
         audioSource.volume = 0.1f;
-
         lives = fullHearts.Length;
         HeartNo.text = "x " + lives;
-
         for (int i = 0; i < lives; i++)
         {
             fullHearts[i].SetActive(true);
             emptyHearts[i].SetActive(false);
         }
-
         startTime = Time.time;
         ResetScore();
     }
@@ -69,10 +56,8 @@ public class GameManager : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P))
         {
-            if (!gamePaused)
-                StopGame();
-            else
-                StartGame();
+            if (!gamePaused) StopGame();
+            else StartGame();
         }
 
         int sec = Mathf.RoundToInt((Time.time - startTime) % 60);
@@ -83,41 +68,37 @@ public class GameManager : MonoBehaviour
     public void StartGame()
     {
         Time.timeScale = 1;
-
         gamePaused = false;
-
         startScreen.SetActive(false);
         playScreen.SetActive(true);
         pauseScreen.SetActive(false);
-
         audioSource.volume = 0.2f;
     }
 
     public void StopGame()
     {
         Time.timeScale = 0;
-
         gamePaused = true;
-
         startScreen.SetActive(false);
         playScreen.SetActive(false);
         pauseScreen.SetActive(true);
-
         audioSource.volume = 0.05f;
     }
 
     public void Die()
     {
         lives--;
-
         if (lives == 0)
         {
+            // Instantly restart instead of waiting
             ResetGame();
         }
-
-        HeartNo.text = "x " + lives;
-        fullHearts[lives].SetActive(false);
-        emptyHearts[lives].SetActive(true);
+        else
+        {
+            HeartNo.text = "x " + lives;
+            fullHearts[lives].SetActive(false);
+            emptyHearts[lives].SetActive(true);
+        }
     }
 
     public void UseDash()

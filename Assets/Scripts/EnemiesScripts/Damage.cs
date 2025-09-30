@@ -5,14 +5,12 @@ using UnityEngine;
 
 public class Damage : MonoBehaviour
 {
-
     public int damagePerHit;
     public int damage;
     [SerializeField] private float hitDelay = 1f;
-
     private float hitTime = 0f;
-
     public float seconds;
+
     void Start()
     {
         damage = 0;
@@ -20,7 +18,6 @@ public class Damage : MonoBehaviour
 
     void Update()
     {
-        
     }
 
     void OnTriggerEnter2D(Collider2D collision)

@@ -31,17 +31,13 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float wallJumpDelay = 0.5f;
     [SerializeField] private float soundDistance = 0.5f;
 
-
-
     private float dirX = 0;
     private float lastDirX = 0;
     private float jumpTime;
     private float wallJumpTime = 0;
-
     private bool isDashing;
     private float timeDash = 0;
     private bool soundPlayed = false;
-
     private bool isDropping = false;
     private bool isFlipped = false;
     private bool jumpPressed;
@@ -52,16 +48,16 @@ public class PlayerMovement : MonoBehaviour
     public int fullHealth;
     public int noHearts;
     static public bool isDamaged;
-
     public int damagePerHit;
     public int damage;
-
     public float secondsCoolDown;
     public float secondsAttackAnimation;
 
-    private enum MovementState { idle, running, jumping, falling, damage, death, dashing, down }
+    private enum MovementState
+    {
+        idle, running, jumping, falling, damage, death, dashing, down
+    }
 
-    // Start is called before the first frame update
     private void Start()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -69,30 +65,29 @@ public class PlayerMovement : MonoBehaviour
         sprite = GetComponent<SpriteRenderer>();
         anim = GetComponent<Animator>();
         shockAnimator = transform.Find("Shockwave").GetComponent<Animator>();
-        rb.freezeRotation = true;
 
+        rb.freezeRotation = true;
         noHearts = 3;
         health = fullHealth;
         isDamaged = false;
     }
 
-    // Update is called once per frame
     private void Update()
     {
-        if (!GameObject.Find("GameManager").GetComponent<GameManager>().gamePaused && noHearts > 0)
+        var gm = GameObject.Find("GameManager").GetComponent<GameManager>();
+
+        if (!gm.gamePaused && noHearts > 0)
         {
-            // Get inputs
+            // Movement input
             if (Input.GetKey(KeyCode.A))
             {
                 dirX = -1;
                 lastDirX = dirX;
-
-                if (isFlipped == false)
+                if (!isFlipped)
                 {
                     Vector3 theScale = transform.localScale;
                     theScale.x *= -1;
                     transform.localScale = theScale;
-
                     isFlipped = true;
                 }
             }
@@ -100,40 +95,36 @@ public class PlayerMovement : MonoBehaviour
             {
                 dirX = 1;
                 lastDirX = dirX;
-
-                if( isFlipped == true )
+                if (isFlipped)
                 {
                     Vector3 theScale = transform.localScale;
                     theScale.x *= -1;
                     transform.localScale = theScale;
-
                     isFlipped = false;
                 }
             }
-            else
-                dirX = 0;
+            else dirX = 0;
 
-            GameObject.Find("GameManager").GetComponent<GameManager>().SetDash(Mathf.Clamp01((timeDash - Time.time) / dashColdown));
+            gm.SetDash(Mathf.Clamp01((timeDash - Time.time) / dashColdown));
 
-            // Dash on Shift press
+            // Dash input
             if (Input.GetKeyDown(KeyCode.LeftShift) && !isDashing && Time.time > timeDash)
             {
                 StartCoroutine(Dash());
             }
 
-            // Jump on W press
-            if (Input.GetKeyDown(KeyCode.W) && (IsGrounded() && (IsObstacleInFront() && !IsGroundedDown())))
+            // Jump input
+            if (Input.GetKeyDown(KeyCode.W) && IsGrounded() && IsObstacleInFront() && !IsGroundedDown())
             {
                 jumpPressed = true;
             }
 
-            // Apply additional force if W is held
             if (Input.GetKey(KeyCode.W) && !IsObstacleOnTop())
             {
                 additionalJumpForceRequired = true;
             }
 
-            // Make on S drop
+            // Drop input
             if (Input.GetKeyDown(KeyCode.S) && !IsOverGround(shockwaveStartDist))
             {
                 dropPressed = true;
@@ -143,6 +134,7 @@ public class PlayerMovement : MonoBehaviour
                 isDropping = false;
             }
 
+            // Attack input
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 StartCoroutine(StopAndAttack(secondsAttackAnimation));
@@ -154,93 +146,81 @@ public class PlayerMovement : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (noHearts > 0)
+        if (noHearts <= 0) return;
+
+        // Horizontal movement
+        if (!isDashing)
         {
-            // Modified Input
-            if (!isDashing)
-            {
-                if (IsObstacleInFront())
-                {
-                    rb.velocity = new Vector2(0, rb.velocity.y);
-                }
-                else
-                {
-                    rb.velocity = new Vector2(dirX * moveSpeed, rb.velocity.y);
-                }
-            }
-
-            if (jumpPressed)
-            {
-                if (IsObstacleInFront() && !IsGroundedDown() && Time.time > wallJumpTime)
-                {
-                    wallJumpTime = Time.time + wallJumpDelay;
-                    rb.velocity = new Vector3(rb.velocity.x, initialJumpForce);
-                    jumpTime = Time.time + maxJumpTime;
-                }
-
-                if (IsGrounded())
-                {
-                    rb.velocity = new Vector3(rb.velocity.x, initialJumpForce);
-                    jumpTime = Time.time + maxJumpTime;
-                    jumpPressed = false; // Reset after use
-                }
-            }
-
-            if (additionalJumpForceRequired)
-            {
-                if (Time.time < jumpTime)
-                {
-                    rb.AddForce(new Vector2(0, holdJumpForce), ForceMode2D.Force);
-                }
-
-                if (IsObstacleInFront() && !IsGroundedDown() && Time.time > wallJumpTime)
-                {
-                    rb.velocity = new Vector3(rb.velocity.x, initialJumpForce);
-                    jumpTime = Time.time + maxJumpTime;
-                    wallJumpTime = Time.time + wallJumpDelay;
-                }
-
-                if (IsGrounded())
-                {
-                    rb.velocity = new Vector3(rb.velocity.x, initialJumpForce);
-                    jumpTime = Time.time + maxJumpTime;
-                }
-
-                additionalJumpForceRequired = false;
-                // Reset after use
-            }
-
-            if (dropPressed)
-            {
-                isDropping = true;
-                soundPlayed = false;
-                rb.AddForce(new Vector2(0, -dropForce), ForceMode2D.Impulse);
-                dropPressed = false; // Reset after use
-            }
-
-            if (isDropping && soundStarter() && Math.Abs(rb.velocity.y) >= shockwaveSpeed) // verify velocity later
-            {
-
-            }
-
-            if ((isDropping && IsOverGround(shockwaveStartDist)) && Math.Abs(rb.velocity.y) >= shockwaveSpeed)
-            {
-                audioSource.Play();
-                soundPlayed = true;
-                OnShockwave?.Invoke(5, 0.3f);
-                anim.SetTrigger("Down");
-                shockAnimator.SetTrigger("Shock");
-                Debug.Log("Shockwave!");
-                isDropping = false;
-            }
+            if (IsObstacleInFront())
+                rb.velocity = new Vector2(0, rb.velocity.y);
             else
+                rb.velocity = new Vector2(dirX * moveSpeed, rb.velocity.y);
+        }
+
+        // Jumping logic
+        if (jumpPressed)
+        {
+            if (IsObstacleInFront() && !IsGroundedDown() && Time.time > wallJumpTime)
             {
-                anim.ResetTrigger("Down");
-                shockAnimator.ResetTrigger("Shock");
+                wallJumpTime = Time.time + wallJumpDelay;
+                rb.velocity = new Vector3(rb.velocity.x, initialJumpForce);
+                jumpTime = Time.time + maxJumpTime;
+            }
+            if (IsGrounded())
+            {
+                rb.velocity = new Vector3(rb.velocity.x, initialJumpForce);
+                jumpTime = Time.time + maxJumpTime;
+                jumpPressed = false;
             }
         }
-    }
 
+        if (additionalJumpForceRequired)
+        {
+            if (Time.time < jumpTime)
+                rb.AddForce(new Vector2(0, holdJumpForce), ForceMode2D.Force);
+
+            if (IsObstacleInFront() && !IsGroundedDown() && Time.time > wallJumpTime)
+            {
+                rb.velocity = new Vector3(rb.velocity.x, initialJumpForce);
+                jumpTime = Time.time + maxJumpTime;
+                wallJumpTime = Time.time + wallJumpDelay;
+            }
+
+            if (IsGrounded())
+            {
+                rb.velocity = new Vector3(rb.velocity.x, initialJumpForce);
+                jumpTime = Time.time + maxJumpTime;
+            }
+
+            additionalJumpForceRequired = false;
+        }
+
+        // Dropping logic
+        if (dropPressed)
+        {
+            isDropping = true;
+            soundPlayed = false;
+            rb.AddForce(new Vector2(0, -dropForce), ForceMode2D.Impulse);
+            dropPressed = false;
+        }
+
+        if (isDropping && soundStarter() && Math.Abs(rb.velocity.y) >= shockwaveSpeed) { }
+
+        if ((isDropping && IsOverGround(shockwaveStartDist)) && Math.Abs(rb.velocity.y) >= shockwaveSpeed)
+        {
+            audioSource.Play();
+            soundPlayed = true;
+            OnShockwave?.Invoke(5, 0.3f);
+            anim.SetTrigger("Down");
+            shockAnimator.SetTrigger("Shock");
+            isDropping = false;
+        }
+        else
+        {
+            anim.ResetTrigger("Down");
+            shockAnimator.ResetTrigger("Shock");
+        }
+    }
 
     private IEnumerator Dash()
     {
@@ -257,56 +237,29 @@ public class PlayerMovement : MonoBehaviour
     {
         MovementState state;
 
-        if (dirX > 0f)
-        {
-            state = MovementState.running;
-            //sprite.flipX = false;
-        }
-        else if (dirX < 0f)
-        {
-            state = MovementState.running;
-            //sprite.flipX = true;
-        }
-        else
-        {
-            state = MovementState.idle;
-        }
+        if (dirX > 0f || dirX < 0f) state = MovementState.running;
+        else state = MovementState.idle;
 
-        if (rb.velocity.y > .15f)
-        {
-            state = MovementState.jumping;
-        }
-        else if (rb.velocity.y < -.15f)
-        {
-            state = MovementState.falling;
-        }
+        if (rb.velocity.y > 0.15f) state = MovementState.jumping;
+        else if (rb.velocity.y < -0.15f) state = MovementState.falling;
 
-        if (isDashing)
-        {
-            state = MovementState.dashing;
-        }
-        if(noHearts < 1)
-        {
-            state = MovementState.death;
-        }
+        if (isDashing) state = MovementState.dashing;
+        if (noHearts < 1) state = MovementState.death;
+
         anim.SetInteger("State", (int)state);
     }
+
     private bool IsGrounded()
     {
-        return Physics2D.BoxCast(coll.bounds.center, coll.bounds.size, 0f, Vector2.down, .4f, jumpableGround).collider != null;
+        return Physics2D.BoxCast(coll.bounds.center, coll.bounds.size, 0f, Vector2.down, 0.4f, jumpableGround).collider != null;
     }
 
     private bool soundStarter()
     {
         RaycastHit2D hit = Physics2D.Raycast(transform.position, -Vector2.up);
-
-        if (hit.collider != null) 
-        {
-            float distance = hit.distance;
-            if(distance <= soundDistance)
-                return true; 
-        }
-        return false; 
+        if (hit.collider != null)
+            return hit.distance <= soundDistance;
+        return false;
     }
 
     private bool IsGroundedDown()
@@ -324,45 +277,51 @@ public class PlayerMovement : MonoBehaviour
     {
         return Physics2D.BoxCast(coll.bounds.center, coll.bounds.size - new Vector3(0, 0.1f), 0f, new Vector2(dirX, 0), 0.1f, jumpableGround).collider != null;
     }
+
     private bool IsObstacleOnTop()
     {
         RaycastHit2D hit = Physics2D.Raycast(coll.bounds.center, Vector2.up, 1f, jumpableGround);
-
-        if (hit.collider != null)
-        {
-            return true;
-        }
-
-        return false;
+        return hit.collider != null;
     }
 
     public void TakeDamage(int damage)
     {
-        Debug.Log("no hearts: " + noHearts);
         anim.SetTrigger("IsHit");
         health -= damage;
+
         if (noHearts >= 0 && health <= 0)
         {
             noHearts--;
             health = fullHealth;
         }
+
         if (noHearts > 0) anim.SetInteger("State", 0);
-        if (noHearts <= 0 || health <= 0) { 
+        if (noHearts <= 0 || health <= 0)
+        {
             health = -1;
-            Debug.Log("CACA");
             anim.SetInteger("State", 5);
+            var gm = GameObject.Find("GameManager").GetComponent<GameManager>();
+            StartCoroutine(RestartAfterDeath(gm));
+
         }
     }
-    IEnumerator StopAndAttack(float seconds)
+
+    private IEnumerator RestartAfterDeath(GameManager gm)
     {
-        anim.SetTrigger("Attack");
+        // get length of current animation
+        AnimatorStateInfo stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+        float waitTime = stateInfo.length;
 
-        yield return new WaitForSeconds(seconds);
+        // wait for the animation to finish
+        yield return new WaitForSeconds(waitTime);
 
-        anim.SetInteger("State", 1);
-
+        gm.ResetGame();
     }
 
+    private IEnumerator StopAndAttack(float seconds)
+    {
+        anim.SetTrigger("Attack");
+        yield return new WaitForSeconds(seconds);
+        anim.SetInteger("State", 1);
+    }
 }
-
-

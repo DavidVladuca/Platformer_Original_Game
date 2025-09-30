@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerScript : MonoBehaviour
@@ -8,13 +7,9 @@ public class PlayerScript : MonoBehaviour
     public int health;
     private int noHearts;
     static public bool isDamaged;
-
-
     public Animator animator;
-
     public int damagePerHit;
     public int damage;
-
     public float secondsCoolDown;
     public float secondsAttackAnimation;
 
@@ -25,7 +20,6 @@ public class PlayerScript : MonoBehaviour
         isDamaged = false;
     }
 
-    // Update is called once per frame
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space))
@@ -37,12 +31,9 @@ public class PlayerScript : MonoBehaviour
     public void TakeDamage(int damage)
     {
         animator.SetInteger("State", 4);
-        //Debug.Log(damage);
-        if (health - damage > 0)
-        {
-            health -= damage;
-        }
-        if(noHearts >= 0 && health <= 0)
+        if (health - damage > 0) health -= damage;
+
+        if (noHearts >= 0 && health <= 0)
         {
             noHearts--;
             health = maxHealth;
@@ -61,11 +52,7 @@ public class PlayerScript : MonoBehaviour
     IEnumerator StopAndAttack(float seconds)
     {
         animator.SetTrigger("Attack");
-
         yield return new WaitForSeconds(seconds);
-
         animator.SetInteger("State", 1);
-
     }
-
 }
